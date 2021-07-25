@@ -47,6 +47,7 @@ void TinyGP::evolve()
 {
 	char* newind;
 	double newfit;
+	printParams();
 	stats(0);
 	for (int gen = 0; gen < GENERATIONS; gen++) {
 		if (fbestpop > -1e-5) {
@@ -179,22 +180,22 @@ int TinyGP::printIndividual(char* buffer, int buffercounter)
 	case ADD:
 		std::cout << "(";
 		a1 = printIndividual(buffer, ++buffercounter);
-		std::cout << "_+_";
+		std::cout << "+";
 		break;
 	case SUB:
 		std::cout << "(";
 		a1 = printIndividual(buffer, ++buffercounter);
-		std::cout << "_-_";
+		std::cout << "-";
 		break;
 	case MUL:
 		std::cout << "(";
 		a1 = printIndividual(buffer, ++buffercounter);
-		std::cout << "_*_";
+		std::cout << "*";
 		break;
 	case DIV:
 		std::cout << "(";
 		a1 = printIndividual(buffer, ++buffercounter);
-		std::cout << "_/_";
+		std::cout << "/";
 		break;
 	}
 	a2 = printIndividual(buffer, a1);
@@ -341,6 +342,24 @@ char* TinyGP::mutation(char* parent, double pmut)
 	}
 	return parentcopy;
 	return nullptr;
+}
+
+void TinyGP::printParams()
+{
+	using namespace std;
+	cout << endl;
+	cout << "Tiny GP " << endl;
+	cout << "SEED: " << seed << endl;
+	cout << "MAX_LEN: " << MAX_LEN << endl;
+	cout << "POPSIZE: " << POPSIZE << endl;
+	cout << "DEPTH: " << DEPTH << endl;
+	cout << "CROSSOVER_PROB: " << CROSSOVER_PROB << endl;
+	cout << "PMUT_PER_NODE: " << PMUT_PER_NODE << endl;
+	cout << "MIN_RANDOM: " << minrandom << endl;
+	cout << "MAX_RANDOM: " << maxrandom << endl;
+	cout << "GENERATIONS: " << GENERATIONS << endl;
+	cout << "TSIZE: " << TSIZE << endl;
+	cout << endl;
 }
 
 int TinyGP::tournament(double* fitness, int tsize)

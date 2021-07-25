@@ -27,11 +27,12 @@ private:
 	int                 negativeTournament(double* fitness, int tsize);
 	char*				crossover(char* parent1, char* parent2);
 	char*				mutation(char* parent1, double pmut);
+	void                printParams();
 private:
 	char**				pop;
 	double				fitness[100000];
 	
-	double				x[ADD];
+	double				x[ADD]; // the set of terminal nodes - first varnumber of inputs then randomnumber random consts
 	double				minrandom,
 						maxrandom;
 	char*				program;
@@ -43,11 +44,11 @@ private:
 						favgpop			= 0.0;
 	long				seed;
 	double				avg_len;
-	static const int	MAX_LEN			= 10000,
-						POPSIZE			= 100000,
-						DEPTH			= 5,
-						GENERATIONS		= 100,
-						TSIZE = 2;
+	static const int	MAX_LEN = 10000,
+						POPSIZE = 100000,
+						DEPTH = 5,
+						GENERATIONS = 100,
+						TSIZE = 3;//2;
 	const double		PMUT_PER_NODE	= 0.05,
 						CROSSOVER_PROB	= 0.9;
 	double**			targets;
