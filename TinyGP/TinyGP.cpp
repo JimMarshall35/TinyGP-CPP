@@ -45,8 +45,7 @@ TinyGP::~TinyGP()
 
 void TinyGP::evolve()
 {
-	char* newind;
-	double newfit;
+	char* newind;  // a new individual, points to heap memory allocated by crossover or mutation
 	printParams();
 	stats(0);
 	for (int gen = 0; gen < GENERATIONS; gen++) {
@@ -64,8 +63,8 @@ void TinyGP::evolve()
 				int parent = tournament(fitness, TSIZE);
 				newind = mutation(pop[parent], PMUT_PER_NODE);
 			}
-			newfit = fitnessFunction(newind);
-			int offspring = negativeTournament(fitness, TSIZE);
+			double newfit = fitnessFunction(newind);
+			int offspring = negativeTournament(fitness, TSIZE); 
 			delete[] pop[offspring];
 			pop[offspring] = newind;
 			fitness[offspring] = newfit;
@@ -85,7 +84,16 @@ void TinyGP::setupFitness(std::string fname)
 	sregex_token_iterator end;
 	vector<string> vec(iter, end);
 	
-
+	/* 
+	FILE HEADER FORMAT:
+	varnumber randomnumber minrandom maxrandom fitnesscases
+	^         ^            ^         ^         ^
+	|         |            |         |         number of fitness cases in file
+	|         |            |         max random const value
+	|         |            min random const value 
+	|         no of random consts in terminal set
+	no of inputs
+	*/
 	varnumber    = stoi(vec[0]);
 	randomnumber = stoi(vec[1]);
 	minrandom    = stod(vec[2]);
@@ -163,42 +171,42 @@ int TinyGP::grow(char* buffer, int pos, int max, int depth)
 	return 0; // should never get here
 }
 
-int TinyGP::printIndividual(char* buffer, int buffercounter)
+int TinyGP::printIndividual(const char* buf, const int buffercounter)
 {
 	int a1 = 0, a2;
-	if (buffer[buffercounter] < FSET_START) {
-		if (buffer[buffercounter] < varnumber) {
-			std::cout << " X" << (int)buffer[buffercounter]+1 << " ";
+	if (buf[buffercounter] < FSET_START) {
+		if (buf[buffercounter] < varnumber) {
+			std::cout << " X" << (int)buf[buffercounter]+1 << " ";
 		}
 		else {
-			std::cout << " " << x[buffer[buffercounter]]<<" ";
+			std::cout << " " << x[buf[buffercounter]]<<" ";
 			
 		}
-		return ++buffercounter;
+		return 1 + buffercounter;
 	}
-	switch (buffer[buffercounter]) {
+	switch (buf[buffercounter]) {
 	case ADD:
 		std::cout << "(";
-		a1 = printIndividual(buffer, ++buffercounter);
+		a1 = printIndividual(buf, 1 + buffercounter);
 		std::cout << "+";
 		break;
 	case SUB:
 		std::cout << "(";
-		a1 = printIndividual(buffer, ++buffercounter);
+		a1 = printIndividual(buf, 1 + buffercounter);
 		std::cout << "-";
 		break;
 	case MUL:
 		std::cout << "(";
-		a1 = printIndividual(buffer, ++buffercounter);
+		a1 = printIndividual(buf, 1 + buffercounter);
 		std::cout << "*";
 		break;
 	case DIV:
 		std::cout << "(";
-		a1 = printIndividual(buffer, ++buffercounter);
+		a1 = printIndividual(buf, 1 + buffercounter);
 		std::cout << "/";
 		break;
 	}
-	a2 = printIndividual(buffer, a1);
+	a2 = printIndividual(buf, a1);
 	std::cout << ")";
 	return a2;
 }
@@ -221,22 +229,24 @@ double TinyGP::fitnessFunction(char* prog)
 	return -fit;
 }
 
-int TinyGP::traverse(char* buffer, int buffercount)
+int TinyGP::traverse(const char* buffer, int buffercount)
 {
 	if (buffer[buffercount] < FSET_START)
-		return ++buffercount;
+		return buffercount + 1;
 	switch (buffer[buffercount]) {
 	case ADD:
 	case SUB:
 	case MUL:
 	case DIV:
-		return traverse(buffer, traverse(buffer, ++buffercount));
+		return traverse(buffer, traverse(buffer, buffercount + 1));
 	}
 	return 0; // should never get here
 }
 
 double TinyGP::run()
 {
+	// interpret program loaded into the class variable "program"
+	// set PC to 0 before calling
 	char primitive = program[PC++];
 	if (primitive < FSET_START)
 		return x[primitive];
@@ -296,7 +306,7 @@ int TinyGP::negativeTournament(double* fitness, int tsize)
 	return worst;
 }
 
-char* TinyGP::crossover(char* parent1, char* parent2)
+char* TinyGP::crossover(const char* parent1, const char* parent2)
 {
 	int len1 = traverse(parent1, 0);
 	int len2 = traverse(parent2, 0);
@@ -317,7 +327,7 @@ char* TinyGP::crossover(char* parent1, char* parent2)
 	return offspring;
 }
 
-char* TinyGP::mutation(char* parent, double pmut)
+char* TinyGP::mutation(const char* parent, const double pmut)
 {
 	int len = traverse(parent, 0);
 	int mutsite;
