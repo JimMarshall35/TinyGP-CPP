@@ -3,6 +3,6 @@ C++ translation / port of the TinyGP java source code from the book "A field gui
 
 Not changed from the original in any significant way.
 
-More or less finished I think - still testing it.
+Hasn't been rigourously tested.
 
 Original Java code by Riccardo Poli (rpoli@essex.ac.uk)
