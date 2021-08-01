@@ -71,14 +71,14 @@ void TinyGP::evolve()
 			}
 			double newfit = fitnessFunction(newind);
 			int offspring = negativeTournament(fitness, TSIZE); 
-			
+			TIMER_START("free")
 #ifdef USE_POOL
 			mempool.freeIndiv(pop[offspring]);
 #endif // USE_POOL
 #ifndef USE_POOL
 			delete[] pop[offspring];
 #endif // !USE_POOL
-
+			TIMER_STOP
 			
 			pop[offspring] = newind;
 			fitness[offspring] = newfit;
@@ -355,7 +355,7 @@ char* TinyGP::crossover(const char* parent1, const char* parent2)
 
 char* TinyGP::mutation(const char* parent, const double pmut)
 {
-	TIMER_START
+	//TIMER_START("mutation")
 	int len = traverse(parent, 0);
 	int mutsite;
 #ifdef USE_POOL
@@ -383,7 +383,7 @@ char* TinyGP::mutation(const char* parent, const double pmut)
 			}
 		}
 	}
-	TIMER_STOP
+	//TIMER_STOP
 	return parentcopy;
 }
 
@@ -424,7 +424,7 @@ void TGP_MemPool::allocate(const int ml, const int ps)
 	max_len = ml;
 	popsize = ps;
 	pool = new char[max_len * popsize + max_len];
-	memset(pool, 0xff, max_len * popsize + max_len);
+	//memset(pool, 0xff, max_len * popsize + max_len);
 	last_slot = pool + max_len * popsize;
 	free_slot = pool;
 }
@@ -445,6 +445,6 @@ char* TGP_MemPool::getNewIndiv()
 void TGP_MemPool::freeIndiv(char* ind)
 {
 	assert(ind <= (last_slot) && ind >= pool);
-	memset(ind, 0xff, max_len);
+	//memset(ind, 0xff, max_len);
 	free_slot = ind;
 }
