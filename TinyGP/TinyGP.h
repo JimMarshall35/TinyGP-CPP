@@ -7,6 +7,23 @@
 #define DIV 113
 #define FSET_START 110
 #define FSET_END 113
+class TGP_MemPool {
+public:
+	TGP_MemPool() {}
+	~TGP_MemPool() { deallocate(); }
+	void allocate(const int max_len, const int popsize);
+	void deallocate() { delete[] pool; }
+	void reallocate(const int max_len, const int popsize);
+	char* getNewIndiv();
+	void freeIndiv(char* ind);
+private:
+	char* pool;
+	int max_len;
+	int popsize;
+	char* free_slot;
+	char* last_slot;
+};
+
 class TinyGP
 {
 public:
@@ -104,15 +121,15 @@ private:
 						favgpop			= 0.0;
 	long				seed;
 	double				avg_len;
-	static const int	MAX_LEN = 10000,
+	static const int	MAX_LEN = 10000,//10000
 						POPSIZE = 100000,
 						DEPTH = 5,
 						GENERATIONS = 100,
-						TSIZE = 3;//2;
+						TSIZE = 2;
 	const double		PMUT_PER_NODE	= 0.05,
 						CROSSOVER_PROB	= 0.9;
 	double**			targets;
 	char				buffer[MAX_LEN];
-
+	TGP_MemPool         mempool;
 };
 

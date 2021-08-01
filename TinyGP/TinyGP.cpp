@@ -9,6 +9,9 @@
 
 #include <regex>
 #include <vector>
+#include <assert.h>
+#include "timer.h"
+#define USE_POOL
 inline double randZeroToOne()
 {
 	return rand() / (RAND_MAX + 1.);
@@ -16,6 +19,9 @@ inline double randZeroToOne()
 TinyGP::TinyGP(std::string fname, long s)
 	:seed(s)
 {
+#ifdef USE_POOL
+	mempool.allocate(MAX_LEN, POPSIZE);
+#endif
 	srand(seed);
 	setupFitness(fname);
 	createRandomPop();
@@ -65,7 +71,15 @@ void TinyGP::evolve()
 			}
 			double newfit = fitnessFunction(newind);
 			int offspring = negativeTournament(fitness, TSIZE); 
+			
+#ifdef USE_POOL
+			mempool.freeIndiv(pop[offspring]);
+#endif // USE_POOL
+#ifndef USE_POOL
 			delete[] pop[offspring];
+#endif // !USE_POOL
+
+			
 			pop[offspring] = newind;
 			fitness[offspring] = newfit;
 		}
@@ -138,7 +152,14 @@ char* TinyGP::createRandomIndividual(int depth)
 	int len = grow(buffer, 0, MAX_LEN, depth);
 	while (len < 0)
 		len = grow(buffer, 0, MAX_LEN, depth);
+#ifdef USE_POOL
+	char* ind = mempool.getNewIndiv();
+#endif // USE_POOL
+#ifndef USE_POOL
 	char* ind = new char[len];
+#endif 
+
+	
 	memcpy(ind, buffer, len);
 	return ind;
 }
@@ -318,8 +339,13 @@ char* TinyGP::crossover(const char* parent1, const char* parent2)
 	int xo2end   = traverse(parent2, xo2start);
 
 	int lenoff = xo1start + (xo2end - xo2start) + (len1 - xo1end);
-
+#ifdef USE_POOL
+	char* offspring = mempool.getNewIndiv();
+#endif // USE_POOL
+#ifndef USE_POOL
 	char* offspring = new char[lenoff];
+#endif
+	
 
 	memcpy(offspring, parent1, xo1start);
 	memcpy(offspring + xo1start, parent2 + xo2start, (xo2end - xo2start));
@@ -329,9 +355,16 @@ char* TinyGP::crossover(const char* parent1, const char* parent2)
 
 char* TinyGP::mutation(const char* parent, const double pmut)
 {
+	TIMER_START
 	int len = traverse(parent, 0);
 	int mutsite;
+#ifdef USE_POOL
+	char* parentcopy = mempool.getNewIndiv();
+#endif
+#ifndef USE_POOL
 	char* parentcopy = new char[len];
+#endif 
+
 	memcpy(parentcopy, parent, len);
 	for (int i = 0; i < len; i++) {
 		if (randZeroToOne() < pmut) {
@@ -350,8 +383,8 @@ char* TinyGP::mutation(const char* parent, const double pmut)
 			}
 		}
 	}
+	TIMER_STOP
 	return parentcopy;
-	return nullptr;
 }
 
 void TinyGP::printParams()
@@ -384,4 +417,34 @@ int TinyGP::tournament(double* fitness, int tsize)
 		}
 	}
 	return best;
+}
+
+void TGP_MemPool::allocate(const int ml, const int ps)
+{
+	max_len = ml;
+	popsize = ps;
+	pool = new char[max_len * popsize + max_len];
+	memset(pool, 0xff, max_len * popsize + max_len);
+	last_slot = pool + max_len * popsize;
+	free_slot = pool;
+}
+
+void TGP_MemPool::reallocate(const int max_len, const int popsize)
+{
+	deallocate();
+	allocate(max_len, popsize);
+}
+
+char* TGP_MemPool::getNewIndiv()
+{
+	char* f = free_slot;
+	free_slot += max_len;
+	return f;
+}
+
+void TGP_MemPool::freeIndiv(char* ind)
+{
+	assert(ind <= (last_slot) && ind >= pool);
+	memset(ind, 0xff, max_len);
+	free_slot = ind;
 }
