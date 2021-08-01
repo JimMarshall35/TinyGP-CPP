@@ -43,9 +43,13 @@ TinyGP::~TinyGP()
 		delete[] targets[i];
 	}
 	delete[] targets;
+#ifndef USE_POOL
 	for (int i = 0; i < POPSIZE; i++) {
 		delete[] pop[i];
 	}
+#endif 
+
+	
 	delete[] pop;
 }
 

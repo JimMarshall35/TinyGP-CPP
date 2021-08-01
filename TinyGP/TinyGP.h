@@ -125,7 +125,7 @@ private:
 						POPSIZE = 100000,
 						DEPTH = 5,
 						GENERATIONS = 100,
-						TSIZE = 2;
+						TSIZE = 3;
 	const double		PMUT_PER_NODE	= 0.05,
 						CROSSOVER_PROB	= 0.9;
 	double**			targets;
