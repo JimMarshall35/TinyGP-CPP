@@ -3,6 +3,6 @@
 
 int main()
 {
-    TinyGP tgp("problem.dat", 24071995);
+    TinyGP tgp("problem.dat", 1313131313);
     tgp.evolve();
 }

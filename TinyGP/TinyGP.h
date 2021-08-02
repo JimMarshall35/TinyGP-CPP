@@ -1,5 +1,6 @@
 #pragma once
 #include<string>
+#include "ThreadPool.h"
 
 #define ADD 110
 #define SUB 111
@@ -74,7 +75,7 @@ private:
 	/*
 		print best individual, best fitness, average fitness and average size of pop
 	*/
-	void                stats(int generation);       
+	void                stats(int generation, ThreadPool& pool);       
 	/*
 		compare tsize random individuals and return the
 		index of the one with the best (highest) fitness.
@@ -93,17 +94,20 @@ private:
 		at a random point on each one, at which they exchange sub trees.
 		Returns a ptr to the newly allocated "offspring", leaves parents unchanged.
 	*/
-	char*				crossover(const char* parent1, const char* parent2);
+	char*				crossover(const char* parent1, const char* parent2, int& len);
 	/*
 		iterates over a copy of the parent tree, with PMUT_PER_NODE probability of exchanging
 		each node for a random new node of the same type (terminal or function).
 		Returns ptr to the new copy, leaves parent unchanged.
 	*/
-	char*				mutation(const char* parent1, const double pmut);
+	char*				mutation(const char* parent1, const double pmut, int& len);
 	/*
 		prints run parameters
 	*/
+	double              runThread(int& pc, const char* prog, const double* vars, const int numvars);
 	void                printParams();
+	double              threadedFitnessFunction(const char* prog, ThreadPool& threadpool);
+
 private:
 	char**				pop;
 	double				fitness[100000];
@@ -124,12 +128,15 @@ private:
 	static const int	MAX_LEN = 10000,//10000
 						POPSIZE = 100000,
 						DEPTH = 5,
-						GENERATIONS = 100,
+						GENERATIONS = 200,
 						TSIZE = 3;
 	const double		PMUT_PER_NODE	= 0.05,
-						CROSSOVER_PROB	= 0.9;
+						CROSSOVER_PROB	= 0.8;
 	double**			targets;
 	char				buffer[MAX_LEN];
 	TGP_MemPool         mempool;
+	int                 num_workers;
+
+	
 };
 

@@ -28,13 +28,12 @@ TinyGP::TinyGP(std::string fname, long s)
 	for (size_t i = 0; i < FSET_START; i++) {
 		x[i] = (maxrandom - minrandom) * randZeroToOne() + minrandom;
 	}
-	/*
-	for (size_t i = 0; i < 200; i++) {
-		std::cout << std::endl;
-		printIndividual(pop[i], 0);
-		std::cout << std::endl;
-	}
-	*/
+	int numthreads = std::thread::hardware_concurrency();
+	std::cout << "threads: " << numthreads << std::endl;
+	num_workers = numthreads - 1 ;
+	//threads_fitness = new double[num_workers];
+	//threads_PC = new int[num_workers];
+	
 }
 
 TinyGP::~TinyGP()
@@ -49,45 +48,73 @@ TinyGP::~TinyGP()
 	}
 #endif 
 
-	
+//	delete[] threads_fitness;
+//	delete[] threads_PC;
 	delete[] pop;
 }
 
 void TinyGP::evolve()
 {
+	ThreadPool& threadpool = ThreadPool::getInstance(num_workers);
 	char* newind;  // a new individual, points to heap memory allocated by crossover or mutation
 	printParams();
-	stats(0);
+	stats(0, threadpool);
 	for (int gen = 0; gen < GENERATIONS; gen++) {
 		if (fbestpop > -1e-5) {
 			std::cout << "Problem solved!" << std::endl;
 			return;
 		}
 		for (int indivs = 0; indivs < POPSIZE; indivs++) {
+			int len;
 			if (randZeroToOne() > CROSSOVER_PROB) {
 				int parent1 = tournament(fitness, TSIZE);
 				int parent2 = tournament(fitness, TSIZE);
-				newind = crossover(pop[parent1], pop[parent2]);
+				newind = crossover(pop[parent1], pop[parent2],len);
 			}
 			else {
 				int parent = tournament(fitness, TSIZE);
-				newind = mutation(pop[parent], PMUT_PER_NODE);
+				newind = mutation(pop[parent], PMUT_PER_NODE,len);
 			}
-			double newfit = fitnessFunction(newind);
+			//TIMER_START("FITNESS")
+			double newfit;
+			if (len < 2000)
+				newfit = fitnessFunction(newind);
+			else {
+
+				double threaded_total = 0;
+				double normal_total = 0;
+				newfit = fitnessFunction(newind);
+				/*
+				std::chrono::high_resolution_clock::time_point t0 = std::chrono::high_resolution_clock::now();
+				newfit = threadedFitnessFunction(newind, threadpool);
+				std::chrono::high_resolution_clock::time_point t1 = std::chrono::high_resolution_clock::now();
+				std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+				threaded_total = time_span.count();
+
+				t0 = std::chrono::high_resolution_clock::now();
+				newfit = fitnessFunction(newind);
+				t1 = std::chrono::high_resolution_clock::now();
+				time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t1 - t0);
+				normal_total = time_span.count();
+
+				std::cout << "normal time " << normal_total << " threaded time " << threaded_total << " len " << len << std::endl;
+				*/
+			}
+			//TIMER_STOP
 			int offspring = negativeTournament(fitness, TSIZE); 
-			TIMER_START("free")
+			
 #ifdef USE_POOL
 			mempool.freeIndiv(pop[offspring]);
 #endif // USE_POOL
 #ifndef USE_POOL
 			delete[] pop[offspring];
 #endif // !USE_POOL
-			TIMER_STOP
+		
 			
 			pop[offspring] = newind;
 			fitness[offspring] = newfit;
 		}
-		stats(gen+1);
+		stats(gen+1, threadpool);
 	}
 }
 
@@ -291,7 +318,7 @@ double TinyGP::run()
 	return 0.0; // should never get here
 }
 
-void TinyGP::stats(int generation)
+void TinyGP::stats(int generation,ThreadPool& threadpool )
 {
 	std::cout << std::endl;
 	std::cout << "-------------------------------> Generation " << generation << " <-------------------------------" << std::endl;
@@ -314,6 +341,7 @@ void TinyGP::stats(int generation)
 	std::cout << "average size: " << avg_len << "\n";
 	std::cout << "best individual: " << "\n";
 	printIndividual(pop[best], 0);
+	std::cout << "\nstandard fitness: " << fitnessFunction(pop[best]) << " " <<"threaded fitness: "<<threadedFitnessFunction(pop[best],threadpool) << std::endl;
 	std::cout << std::endl;
 }
 
@@ -331,7 +359,7 @@ int TinyGP::negativeTournament(double* fitness, int tsize)
 	return worst;
 }
 
-char* TinyGP::crossover(const char* parent1, const char* parent2)
+char* TinyGP::crossover(const char* parent1, const char* parent2, int& len)
 {
 	int len1 = traverse(parent1, 0);
 	int len2 = traverse(parent2, 0);
@@ -342,12 +370,12 @@ char* TinyGP::crossover(const char* parent1, const char* parent2)
 	int xo2start = rand() % len2;
 	int xo2end   = traverse(parent2, xo2start);
 
-	int lenoff = xo1start + (xo2end - xo2start) + (len1 - xo1end);
+	len = xo1start + (xo2end - xo2start) + (len1 - xo1end);
 #ifdef USE_POOL
 	char* offspring = mempool.getNewIndiv();
 #endif // USE_POOL
 #ifndef USE_POOL
-	char* offspring = new char[lenoff];
+	char* offspring = new char[len];
 #endif
 	
 
@@ -357,10 +385,10 @@ char* TinyGP::crossover(const char* parent1, const char* parent2)
 	return offspring;
 }
 
-char* TinyGP::mutation(const char* parent, const double pmut)
+char* TinyGP::mutation(const char* parent, const double pmut, int& len)
 {
 	//TIMER_START("mutation")
-	int len = traverse(parent, 0);
+	len = traverse(parent, 0);
 	int mutsite;
 #ifdef USE_POOL
 	char* parentcopy = mempool.getNewIndiv();
@@ -391,6 +419,29 @@ char* TinyGP::mutation(const char* parent, const double pmut)
 	return parentcopy;
 }
 
+double TinyGP::runThread(int& pc, const char* prog, const double* vars, const int numvars)
+{
+	char primitive = prog[pc++];
+	if (primitive < numvars)
+		return vars[primitive];
+	if (primitive < FSET_START)
+		return x[primitive];
+	switch (primitive) {
+	case ADD: return (runThread(pc, prog, vars, numvars) + runThread(pc, prog, vars, numvars));
+	case SUB: return (runThread(pc, prog, vars, numvars) - runThread(pc, prog, vars, numvars));
+	case MUL: return (runThread(pc, prog, vars, numvars) * runThread(pc, prog, vars, numvars));
+	case DIV:
+		double num = runThread(pc, prog, vars, numvars), den = runThread(pc, prog, vars, numvars);
+		if (abs(den) <= 0.001) {
+			return num;
+		}
+		else {
+			return num / den;
+		}
+	}
+	return 0.0; // should never get here
+}
+
 void TinyGP::printParams()
 {
 	using namespace std;
@@ -407,6 +458,54 @@ void TinyGP::printParams()
 	cout << "GENERATIONS: " << GENERATIONS << endl;
 	cout << "TSIZE: " << TSIZE << endl;
 	cout << endl;
+}
+#define MAX_WORKERS 16
+#define MAX_VARS 5
+double TinyGP::threadedFitnessFunction(const char* prog, ThreadPool& threadpool)
+{
+	/*
+	This is NOT faster than the single threaded fitness function. Its a lot slower!
+	It approaches the other functions speed as program length increases, and perhaps would
+	be more efficient with increasing number of fitness cases.
+
+	Why is this? don't know. perhaps the runThread function is far slower than run?
+	Maybe i've just done it wrong somehow.
+	
+	TODO: look at threadpool class - was copy / pasted
+	from github without really reading it
+	*/
+	double return_val = 0;
+	double outputs[MAX_WORKERS] = { 0 };
+	
+	auto thread_func = [this](int start, int finish, const char* prog) {
+		double vars[MAX_VARS] = { 0 };
+		double fit = 0;
+		for (int i = start; i < finish; i++) {
+			for (int j = 0; j < varnumber; j++) {
+				vars[j] = targets[i][j];
+			}
+			int PC = 0;
+			double result = runThread(PC,prog,vars,varnumber);
+			fit += abs(result - targets[i][varnumber]);
+		}
+		return fit;
+	};
+	int start = 0;
+	int finish = fitnesscases / num_workers;
+	std::future<double> futures[MAX_WORKERS];
+	for (int i = 0; i < num_workers; i++) {
+		//threads[i] = std::thread(thread_func, start, finish, prog, std::ref(outputs[i]));
+		futures[i] = threadpool.push(thread_func, start, finish, prog);
+		start = finish;
+		finish += fitnesscases / num_workers;
+		if (finish > fitnesscases)
+			finish = fitnesscases;
+	}
+	for (int i = 0; i < num_workers; i++) {
+		
+		return_val += futures[i].get();;
+	}
+	return -return_val;
 }
 
 int TinyGP::tournament(double* fitness, int tsize)
